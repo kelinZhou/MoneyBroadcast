@@ -4,7 +4,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.media.SoundPool
 import com.kelin.moneybroadcast.voice.*
-import com.kelin.moneybroadcast.voice.provider.VoiceProvider
+import com.kelin.moneybroadcast.voice.provider.DefaultVoiceProvider
 import java.text.DecimalFormat
 import java.util.concurrent.Executors
 
@@ -17,7 +17,7 @@ import java.util.concurrent.Executors
  *
  * **版本:** v 1.0.0
  */
-internal class MoneyBroadcasterDelegate(private val context: Context, private val provider: VoiceProvider) : MoneyBroadcaster {
+internal class MoneyBroadcasterDelegate(private val context: Context, private val provider: ((what: VoiceWhat) -> VoiceRes?)?) : MoneyBroadcaster {
 
     companion object {
         private val CHINESE_UNIT = charArrayOf('零', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿', '拾', '佰', '仟')
@@ -42,6 +42,8 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         )
     }
 
+    private val defaultVoiceProvider by lazy { DefaultVoiceProvider() }
+
     private val executorService by lazy { Executors.newCachedThreadPool() }
 
     override fun play(amount: Double) {
@@ -57,12 +59,14 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     private fun doPlay(amount: AmountPlayInfo) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
             SoundPool(1, AudioManager.STREAM_MUSIC, 0).also { player ->
-                val soundList = genVoiceList(amount).map { what ->
-                    provider.onProvideVoice(what).let {
-                        SoundId(
-                            loadVoiceDataByVoiceRes(player, it),
-                            it.duration
-                        )
+                val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
+                    (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
+                        loadVoiceDataByVoiceRes(player, it)?.let { id ->
+                            SoundId(
+                                id,
+                                it.duration
+                            )
+                        }
                     }
                 }
                 Thread.sleep(500L)
@@ -76,7 +80,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         }
     }
 
-    private fun loadVoiceDataByVoiceRes(player: SoundPool, res: VoiceRes): Int {
+    private fun loadVoiceDataByVoiceRes(player: SoundPool, res: VoiceRes): Int? {
         return when (res) {
             is RawVoice -> {
                 player.load(context, res.res, 100)
@@ -84,12 +88,16 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
             is AssetVoice -> {
                 player.load(context.assets.openFd(res.res), 100)
             }
+            else -> null
         }
     }
 
-    private fun genVoiceList(amount: AmountPlayInfo): List<VoiceWhat> {
-        return if (amount.amount == 0.0) {
-            emptyList()
+    /**
+     * 根据金额返回声音类型。
+     */
+    private fun getVoiceWhatListByAmount(amount: AmountPlayInfo): List<VoiceWhat> {
+        return if (amount.amount == 0.0 || amount.amount > 999999999.9999) {
+            listOf(amount.front)
         } else {
             val amountStr = DecimalFormat("0.####").format(amount.amount)
             ArrayList<VoiceWhat>(amountStr.length + 2).apply {
@@ -100,6 +108,9 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         }
     }
 
+    /**
+     * 将金额的字符串形式转换为声音类型。
+     */
     private fun transformReadableNumbers(amount: String): List<VoiceWhat> {
         return if (amount.contains(".")) {
             val amountParts = amount.split('.')
@@ -159,5 +170,8 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         return readableAmount.mapNotNull { voiceWhatPool[it] }
     }
 
+    /**
+     * 封装SoundPool的ID和时长。
+     */
     data class SoundId(val id: Int, val duration: Long)
 }

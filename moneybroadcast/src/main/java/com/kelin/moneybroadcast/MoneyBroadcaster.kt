@@ -1,8 +1,8 @@
 package com.kelin.moneybroadcast
 
 import android.content.Context
-import com.kelin.moneybroadcast.voice.provider.DefaultVoiceProvider
-import com.kelin.moneybroadcast.voice.provider.VoiceProvider
+import com.kelin.moneybroadcast.voice.VoiceRes
+import com.kelin.moneybroadcast.voice.VoiceWhat
 
 /**
  * **描述:** 金额播报者。
@@ -16,7 +16,7 @@ import com.kelin.moneybroadcast.voice.provider.VoiceProvider
 interface MoneyBroadcaster {
     companion object {
 
-        fun with(context: Context, provider: VoiceProvider = DefaultVoiceProvider()): MoneyBroadcaster {
+        fun with(context: Context, provider: ((what: VoiceWhat) -> VoiceRes?)? = null): MoneyBroadcaster {
             synchronized(MoneyBroadcaster::class.java) {
                 return MoneyBroadcasterDelegate(context, provider)
             }

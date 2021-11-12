@@ -26,4 +26,18 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="40dp"
         android:text="播报" />
+
+    <Button
+        android:id="@+id/btnPlay2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="使用自定义声音播报"/>
+
+    <Button
+        android:id="@+id/btnPlay3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="不播报收款成功"/>
 </LinearLayout>

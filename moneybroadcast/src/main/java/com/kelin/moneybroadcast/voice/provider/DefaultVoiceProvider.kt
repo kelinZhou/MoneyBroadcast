@@ -33,6 +33,7 @@ class DefaultVoiceProvider : VoiceProvider {
             VoiceWhatTwo, VoiceWhatTwain -> RawVoice(R.raw.tts_2, 500)
             VoiceWhatOne -> RawVoice(R.raw.tts_1, 500)
             VoiceWhatZero -> RawVoice(R.raw.tts_0, 500)
+            VoiceWhatNull -> NullVoice()
         }
     }
 }

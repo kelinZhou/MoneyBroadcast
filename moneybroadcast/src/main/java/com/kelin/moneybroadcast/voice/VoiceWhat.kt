@@ -12,6 +12,11 @@ package com.kelin.moneybroadcast.voice
 sealed class VoiceWhat
 
 /**
+ * 无声音。
+ */
+object VoiceWhatNull : VoiceWhat()
+
+/**
  * 收款成功。
  */
 object VoiceWhatSuccess : VoiceWhat()

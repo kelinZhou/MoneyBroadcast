@@ -16,6 +16,17 @@ sealed class VoiceRes(
     open val duration: Long
 )
 
+/**
+ * raw资源下的声音资源。
+ */
 class RawVoice(@RawRes override val res: Int, override val duration: Long) : VoiceRes(res, duration)
 
+/**
+ * asset资源下的声音资源。
+ */
 class AssetVoice(override val res: String, override val duration: Long) : VoiceRes(res, duration)
+
+/**
+ * 无任何声音，当某些字符不需要有声音时使用。
+ */
+class NullVoice : VoiceRes("", 0)
