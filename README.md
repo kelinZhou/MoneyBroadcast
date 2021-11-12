@@ -24,8 +24,8 @@ MoneyBroadcaster.with(applicationContext) {
 
 ```AssetVoice```为asset目下的声音资源，构造方法参数如下：
 
-	* res : String             asset目录下资源的文件名称，如果资源放在子文件夹下，还要包含文件夹名称，例如：```sound/tts_success```。
-	* duration : Long      声音资源的播放时长，该参数必须要是当前声音资源的真实播放时长，否则可能出现声音重叠或间隔过长的问题。
+ * res : String             asset目录下资源的文件名称，如果资源放在子文件夹下，还要包含文件夹名称，例如：```sound/tts_success```。
+ * duration : Long      声音资源的播放时长，该参数必须要是当前声音资源的真实播放时长，否则可能出现声音重叠或间隔过长的问题。
 
 ```RawVoice```为raw目录下的声音资源，构造方法参数如下：
 
