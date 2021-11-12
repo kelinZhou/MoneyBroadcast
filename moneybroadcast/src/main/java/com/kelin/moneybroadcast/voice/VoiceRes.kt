@@ -1,7 +1,5 @@
 package com.kelin.moneybroadcast.voice
 
-import androidx.annotation.RawRes
-
 /**
  * **描述:** 声音资源。
  *
@@ -19,7 +17,7 @@ sealed class VoiceRes(
 /**
  * raw资源下的声音资源。
  */
-class RawVoice(@RawRes override val res: Int, override val duration: Long) : VoiceRes(res, duration)
+class RawVoice(override val res: Int, override val duration: Long) : VoiceRes(res, duration)
 
 /**
  * asset资源下的声音资源。
