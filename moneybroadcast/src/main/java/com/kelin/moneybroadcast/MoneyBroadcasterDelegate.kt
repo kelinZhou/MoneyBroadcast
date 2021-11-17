@@ -20,7 +20,7 @@ import java.util.concurrent.Executors
 internal class MoneyBroadcasterDelegate(private val context: Context, private val provider: ((what: VoiceWhat) -> VoiceRes?)?) : MoneyBroadcaster {
 
     companion object {
-        private val CHINESE_UNIT = charArrayOf('零', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿', '拾', '佰', '仟')
+        private val CHINESE_UNIT = charArrayOf('元', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿', '拾', '佰', '仟')
 
         val voiceWhatPool = mapOf(
             Pair('亿', VoiceWhatTenMillion),
@@ -158,7 +158,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
                     .replace("0+万".toRegex(), "万")
                     .replace("0+元".toRegex(), "元")
                     .replace("0+".toRegex(), "0")
-                    .replace("零", "")
+                    .replace("元", "")
             }
         }
     }
