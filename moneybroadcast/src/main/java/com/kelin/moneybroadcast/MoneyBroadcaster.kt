@@ -26,4 +26,6 @@ interface MoneyBroadcaster {
     fun play(amount: Double)
 
     fun play(amount: AmountPlayInfo)
+
+    fun stop()
 }

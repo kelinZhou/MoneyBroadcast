@@ -6,6 +6,7 @@ import android.media.SoundPool
 import com.kelin.moneybroadcast.voice.*
 import com.kelin.moneybroadcast.voice.provider.DefaultVoiceProvider
 import java.text.DecimalFormat
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
@@ -44,7 +45,14 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
 
     private val defaultVoiceProvider by lazy { DefaultVoiceProvider() }
 
-    private val executorService by lazy { Executors.newCachedThreadPool() }
+    private var mExecutor: ExecutorService? = null
+
+    private val executorService: ExecutorService
+        get() = if (mExecutor == null || mExecutor!!.isShutdown) {
+            Executors.newCachedThreadPool().also { mExecutor = it }
+        } else {
+            mExecutor!!
+        }
 
     override fun play(amount: Double) {
         play(AmountPlayInfo(amount))
@@ -56,26 +64,36 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         }
     }
 
+    override fun stop() {
+        if (!executorService.isShutdown) {
+            executorService.shutdownNow()
+        }
+    }
+
     private fun doPlay(amount: AmountPlayInfo) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
-            SoundPool(1, AudioManager.STREAM_MUSIC, 0).also { player ->
-                val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
-                    (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
-                        loadVoiceDataByVoiceRes(player, it)?.let { id ->
-                            SoundId(
-                                id,
-                                it.duration
-                            )
+            try {
+                SoundPool(1, AudioManager.STREAM_MUSIC, 0).also { player ->
+                    val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
+                        (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
+                            loadVoiceDataByVoiceRes(player, it)?.let { id ->
+                                SoundId(
+                                    id,
+                                    it.duration
+                                )
+                            }
+                        }
+                    }
+                    Thread.sleep(500L)
+                    soundList.forEachIndexed { i, sound ->
+                        player.play(sound.id, 1F, 1F, 100, 0, 1F)
+                        if (i < soundList.lastIndex) {
+                            Thread.sleep(sound.duration)
                         }
                     }
                 }
-                Thread.sleep(500L)
-                soundList.forEachIndexed { i, sound ->
-                    player.play(sound.id, 1F, 1F, 100, 0, 1F)
-                    if (i < soundList.lastIndex) {
-                        Thread.sleep(sound.duration)
-                    }
-                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
