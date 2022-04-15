@@ -3,9 +3,11 @@ package com.kelin.moneybroadcast
 import android.content.Context
 import android.media.AudioManager
 import android.media.SoundPool
+import androidx.annotation.WorkerThread
 import com.kelin.moneybroadcast.voice.*
 import com.kelin.moneybroadcast.voice.provider.DefaultVoiceProvider
 import java.text.DecimalFormat
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -41,38 +43,50 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
             Pair('9', VoiceWhatNine),
             Pair('.', VoiceWhatDot),
         )
+
+        private val queue by lazy { ArrayBlockingQueue<AmountPlayInfo>(1000, true) }
     }
 
     private val defaultVoiceProvider by lazy { DefaultVoiceProvider() }
 
-    private var mExecutor: ExecutorService? = null
+    private val executorService by lazy { Executors.newSingleThreadExecutor() }
 
-    private val executorService: ExecutorService
-        get() = if (mExecutor == null || mExecutor!!.isShutdown) {
-            Executors.newCachedThreadPool().also { mExecutor = it }
-        } else {
-            mExecutor!!
-        }
+    init {
+        executorService.execute { doPlay() }
+    }
 
     override fun play(amount: Double) {
-        play(AmountPlayInfo(amount))
+        synchronized(MoneyBroadcasterDelegate::class.java) {
+            queue.put(AmountPlayInfo(amount))
+        }
     }
 
     override fun play(amount: AmountPlayInfo) {
-        executorService.execute {
-            doPlay(amount)
+        synchronized(MoneyBroadcasterDelegate::class.java) {
+            queue.put(amount)
+        }
+    }
+
+    override fun playAll(amounts: Collection<Double>) {
+        synchronized(MoneyBroadcasterDelegate::class.java) {
+            amounts.forEach { queue.put(AmountPlayInfo(it)) }
+        }
+    }
+
+    override fun play(amounts: Collection<AmountPlayInfo>) {
+        synchronized(MoneyBroadcasterDelegate::class.java) {
+            amounts.forEach { queue.put(it) }
         }
     }
 
     override fun stop() {
-        if (!executorService.isShutdown) {
-            executorService.shutdownNow()
-        }
+        queue.clear()
     }
 
-    private fun doPlay(amount: AmountPlayInfo) {
-        synchronized(MoneyBroadcaster.any) {
-            try {
+    @WorkerThread
+    private fun doPlay() {
+        try {
+            queue.take().also { amount ->
                 SoundPool(1, AudioManager.STREAM_MUSIC, 0).also { player ->
                     val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
                         (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
@@ -92,10 +106,11 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
                         }
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+        doPlay()
     }
 
     private fun loadVoiceDataByVoiceRes(player: SoundPool, res: VoiceRes): Int? {

@@ -15,9 +15,9 @@ import com.kelin.moneybroadcast.voice.VoiceWhat
  */
 interface MoneyBroadcaster {
     companion object {
-        internal val any by lazy { Any() }
+
         fun with(context: Context, provider: ((what: VoiceWhat) -> VoiceRes?)? = null): MoneyBroadcaster {
-            synchronized(any) {
+            synchronized(MoneyBroadcaster::class.java) {
                 return MoneyBroadcasterDelegate(context, provider)
             }
         }
@@ -25,7 +25,11 @@ interface MoneyBroadcaster {
 
     fun play(amount: Double)
 
+    fun playAll(amounts: Collection<Double>)
+
     fun play(amount: AmountPlayInfo)
+
+    fun play(amounts: Collection<AmountPlayInfo>)
 
     fun stop()
 }
