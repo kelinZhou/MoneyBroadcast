@@ -71,7 +71,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     }
 
     private fun doPlay(amount: AmountPlayInfo) {
-        synchronized(any) {
+        synchronized(MoneyBroadcaster.any) {
             try {
                 SoundPool(1, AudioManager.STREAM_MUSIC, 0).also { player ->
                     val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->

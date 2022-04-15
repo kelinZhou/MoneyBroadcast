@@ -15,7 +15,7 @@ import com.kelin.moneybroadcast.voice.VoiceWhat
  */
 interface MoneyBroadcaster {
     companion object {
-        private val any by lazy { Any() }
+        internal val any by lazy { Any() }
         fun with(context: Context, provider: ((what: VoiceWhat) -> VoiceRes?)? = null): MoneyBroadcaster {
             synchronized(any) {
                 return MoneyBroadcasterDelegate(context, provider)
