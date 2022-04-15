@@ -112,6 +112,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
                             Thread.sleep(sound.duration)
                         }
                     }
+                    player.release()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
