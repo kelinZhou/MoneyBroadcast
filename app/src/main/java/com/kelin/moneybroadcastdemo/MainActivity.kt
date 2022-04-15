@@ -2,6 +2,7 @@ package com.kelin.moneybroadcastdemo
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
@@ -29,6 +30,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val handler = Handler()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -37,6 +40,8 @@ class MainActivity : AppCompatActivity() {
             if (!etAmount.text.isNullOrEmpty()) {
                 moneyBroadcaster1.play(etAmount.text.toString().toDouble())
                 etAmount.text = null
+            } else {
+                moneyBroadcaster1.playAll(listOf(321.0, 321.4, 321.0, 325.8))
             }
         }
         btnPlay2.setOnClickListener {
@@ -53,6 +58,10 @@ class MainActivity : AppCompatActivity() {
                 etAmount.text = null
             }
         }
+
+        handler.postDelayed({
+            moneyBroadcaster1.playAll(listOf(321.0, 321.4, 321.0, 325.8))
+        }, 500)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

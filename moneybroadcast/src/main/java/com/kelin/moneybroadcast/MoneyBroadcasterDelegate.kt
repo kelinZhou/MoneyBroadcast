@@ -3,6 +3,7 @@ package com.kelin.moneybroadcast
 import android.content.Context
 import android.media.AudioManager
 import android.media.SoundPool
+import android.util.Log
 import androidx.annotation.WorkerThread
 import com.kelin.moneybroadcast.voice.*
 import com.kelin.moneybroadcast.voice.provider.DefaultVoiceProvider
@@ -43,15 +44,11 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
             Pair('.', VoiceWhatDot),
         )
 
-        private val dataQueue by lazy { ArrayBlockingQueue<AmountPlayInfo>(10000, true) }
-        private val readyQueue by lazy { ArrayBlockingQueue<AmountPlayInfo>(1, true) }
-
+        private val producerService by lazy { Executors.newSingleThreadExecutor() }
+        private val consumerService by lazy { Executors.newSingleThreadExecutor() }
     }
 
     private val defaultVoiceProvider by lazy { DefaultVoiceProvider() }
-
-    private val producerService by lazy { Executors.newSingleThreadExecutor() }
-    private val consumerService by lazy { Executors.newSingleThreadExecutor() }
 
     init {
         consumerService.execute { startPlay() }
@@ -75,19 +72,19 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
 
     private fun doProducer(amounts: Collection<AmountPlayInfo>) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
-            amounts.forEach { dataQueue.put(it) }
+            amounts.forEach { AmountQueue.dataQueue.put(it) }
         }
     }
 
     override fun stop() {
-        dataQueue.clear()
+        AmountQueue.dataQueue.clear()
     }
 
     @WorkerThread
     private fun startPlay() {
         while (true) {
-            readyQueue.put(dataQueue.take())
-            doPlay(readyQueue.take())
+            AmountQueue.readyQueue.put(AmountQueue.dataQueue.take())
+            doPlay(AmountQueue.readyQueue.take())
         }
     }
 
@@ -96,6 +93,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     private fun doPlay(amount: AmountPlayInfo) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
             try {
+                Log.d("MoneyBroadcaster", "=========播放：${amount.amount}")
                 SoundPool(1, AudioManager.STREAM_MUSIC, 0).also { player ->
                     val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
                         (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
