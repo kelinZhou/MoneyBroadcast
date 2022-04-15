@@ -49,6 +49,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     }
 
     private val defaultVoiceProvider by lazy { DefaultVoiceProvider() }
+    private val player by lazy { SoundPool(1, AudioManager.STREAM_MUSIC, 0) }
 
     init {
         consumerService.execute { startPlay() }
@@ -94,25 +95,22 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         synchronized(MoneyBroadcasterDelegate::class.java) {
             try {
                 Log.d("MoneyBroadcaster", "=========播放：${amount.amount}")
-                SoundPool(1, AudioManager.STREAM_MUSIC, 0).also { player ->
-                    val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
-                        (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
-                            loadVoiceDataByVoiceRes(player, it)?.let { id ->
-                                SoundId(
-                                    id,
-                                    it.duration
-                                )
-                            }
+                val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
+                    (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
+                        loadVoiceDataByVoiceRes(player, it)?.let { id ->
+                            SoundId(
+                                id,
+                                it.duration
+                            )
                         }
                     }
-                    Thread.sleep(500L)
-                    soundList.forEachIndexed { i, sound ->
-                        player.play(sound.id, 1F, 1F, 100, 0, 1F)
-                        if (i < soundList.lastIndex) {
-                            Thread.sleep(sound.duration)
-                        }
+                }
+                Thread.sleep(500L)
+                soundList.forEachIndexed { i, sound ->
+                    player.play(sound.id, 1F, 1F, 100, 0, 1F)
+                    if (i < soundList.lastIndex) {
+                        Thread.sleep(sound.duration)
                     }
-                    player.release()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
