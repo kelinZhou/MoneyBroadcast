@@ -1,14 +1,12 @@
 package com.kelin.moneybroadcast
 
 import android.content.Context
-import android.content.res.AssetFileDescriptor
-import android.media.MediaPlayer
-import android.util.Log
-import androidx.annotation.WorkerThread
+import android.media.AudioManager
+import android.media.SoundPool
 import com.kelin.moneybroadcast.voice.*
 import com.kelin.moneybroadcast.voice.provider.DefaultVoiceProvider
 import java.text.DecimalFormat
-import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
@@ -45,148 +43,69 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         )
     }
 
-    /**
-     * 生产线程。
-     */
-    private val producerService by lazy { Executors.newSingleThreadExecutor() }
-
-    /**
-     * 消费线程。
-     */
-    private val consumerService by lazy { Executors.newSingleThreadExecutor() }
-
-    /**
-     * 默认的声音提供者。
-     */
     private val defaultVoiceProvider by lazy { DefaultVoiceProvider() }
 
-    /**
-     * 播放器。
-     */
-    private val player by lazy { MediaPlayer() }
+    private var mExecutor: ExecutorService? = null
 
-    /**
-     * 数据源队列。
-     */
-    private val dataQueue by lazy { ArrayBlockingQueue<AmountPlayInfo>(10000, true) }
-
-    /**
-     * 准备好了的数据队列。
-     */
-    private val readyQueue by lazy { ArrayBlockingQueue<AmountPlayInfo>(1, true) }
-
-    init {
-        consumerService.execute {
-            while (true) {
-                dataQueue.take().also {
-                    readyQueue.put(it)
-                    doPlayV2(it)
-                }
-            }
+    private val executorService: ExecutorService
+        get() = if (mExecutor == null || mExecutor!!.isShutdown) {
+            Executors.newCachedThreadPool().also { mExecutor = it }
+        } else {
+            mExecutor!!
         }
-    }
 
     override fun play(amount: Double) {
         play(AmountPlayInfo(amount))
     }
 
     override fun play(amount: AmountPlayInfo) {
-        play(listOf(amount))
-    }
-
-    override fun playAll(amounts: Collection<Double>) {
-        play(amounts.map { AmountPlayInfo(it) })
-    }
-
-    override fun play(amounts: Collection<AmountPlayInfo>) {
-        producerService.execute { doProducer(amounts) }
-    }
-
-    private fun doProducer(amounts: Collection<AmountPlayInfo>) {
-        synchronized(MoneyBroadcasterDelegate::class.java) {
-            amounts.forEach { dataQueue.put(it) }
+        executorService.execute {
+            doPlay(amount)
         }
     }
 
     override fun stop() {
-        dataQueue.clear()
+        if (!executorService.isShutdown) {
+            executorService.shutdownNow()
+        }
     }
 
-
-//    @WorkerThread
-//    private fun doPlay(amount: AmountPlayInfo) {
-//        synchronized(MoneyBroadcasterDelegate::class.java) {
-//            try {
-//                Log.d("MoneyBroadcaster", "=========播放：${amount.amount}")
-//                val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
-//                    (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
-//                        loadVoiceDataByVoiceRes(player, it)?.let { id ->
-//                            SoundId(
-//                                id,
-//                                it.duration
-//                            )
-//                        }
-//                    }
-//                }
-//                Thread.sleep(500L)
-//                soundList.forEachIndexed { i, sound ->
-//                    player.play(sound.id, 1F, 1F, 100, 0, 1F)
-//                    if (i < soundList.lastIndex) {
-//                        Thread.sleep(sound.duration)
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                e.printStackTrace()
-//            }
-//        }
-//    }
-
-    @WorkerThread
-    private fun doPlayV2(amount: AmountPlayInfo) {
-        synchronized(MoneyBroadcasterDelegate::class.java) {
-            Log.d("Player", "加载播放资源")
-            val srcList = getVoiceWhatListByAmount(amount).mapNotNullTo(ArrayList()) { what ->
-                (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
-                    if (it is NullVoice) {
-                        null
-                    } else {
-                        it
+    private fun doPlay(amount: AmountPlayInfo) {
+        synchronized(MoneyBroadcaster.any) {
+            try {
+                SoundPool(1, AudioManager.STREAM_MUSIC, 0).also { player ->
+                    val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
+                        (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
+                            loadVoiceDataByVoiceRes(player, it)?.let { id ->
+                                SoundId(
+                                    id,
+                                    it.duration
+                                )
+                            }
+                        }
+                    }
+                    Thread.sleep(500L)
+                    soundList.forEachIndexed { i, sound ->
+                        player.play(sound.id, 1F, 1F, 100, 0, 1F)
+                        if (i < soundList.lastIndex) {
+                            Thread.sleep(sound.duration)
+                        }
                     }
                 }
-            }
-            Log.d("Player", "开始播放")
-            startPlay(srcList)
-        }
-    }
-
-    private fun startPlay(srcList: ArrayList<VoiceRes>) {
-        synchronized(MoneyBroadcasterDelegate::class.java) {
-            val descriptor = context.resources.openRawResourceFd(srcList[0].res)
-            player.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-            player.prepareAsync()
-            player.setOnPreparedListener { player.start() }
-            player.setOnCompletionListener {
-                player.reset()
-                srcList.removeAt(0)
-                if (srcList.isNotEmpty()) {
-                    Log.d("Player", "继续播放")
-                    startPlay(srcList)
-                } else {
-                    Log.d("Player", "开始初始化下一条，剩余：${dataQueue.size}")
-                    readyQueue.take()
-                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
 
-    private fun loadVoiceDataByVoiceRes(res: VoiceRes): AssetFileDescriptor? {
+    private fun loadVoiceDataByVoiceRes(player: SoundPool, res: VoiceRes): Int? {
         return when (res) {
             is RawVoice -> {
-                context.resources.openRawResourceFd(res.res)
+                player.load(context, res.res, 100)
             }
-//            is AssetVoice -> {
-//                player.load(context.assets.openFd(res.res), 100)
-//            }
+            is AssetVoice -> {
+                player.load(context.assets.openFd(res.res), 100)
+            }
             else -> null
         }
     }
@@ -194,9 +113,9 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     /**
      * 根据金额返回声音类型。
      */
-    private fun getVoiceWhatListByAmount(amount: AmountPlayInfo): MutableList<VoiceWhat> {
+    private fun getVoiceWhatListByAmount(amount: AmountPlayInfo): List<VoiceWhat> {
         return if (amount.amount == 0.0 || amount.amount > 999999999.9999) {
-            mutableListOf(amount.front)
+            listOf(amount.front)
         } else {
             val amountStr = DecimalFormat("0.####").format(amount.amount)
             ArrayList<VoiceWhat>(amountStr.length + 2).apply {
