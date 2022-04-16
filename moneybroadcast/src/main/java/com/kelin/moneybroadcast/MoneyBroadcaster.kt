@@ -15,21 +15,29 @@ import com.kelin.moneybroadcast.voice.VoiceWhat
  */
 interface MoneyBroadcaster {
     companion object {
-
-        fun with(context: Context, provider: ((what: VoiceWhat) -> VoiceRes?)? = null): MoneyBroadcaster {
+        /**
+         * 创建一个MoneyBroadcaster。
+         */
+        fun create(context: Context, provider: ((what: VoiceWhat) -> VoiceRes?)? = null): MoneyBroadcaster {
             synchronized(MoneyBroadcaster::class.java) {
                 return MoneyBroadcasterDelegate(context, provider)
             }
         }
     }
 
-    fun play(amount: Double)
+    fun play(amount: Double) {
+        play(AmountPlayInfo(amount))
+    }
 
-    fun playAll(amounts: Collection<Double>)
+    fun play(amount: AmountPlayInfo) {
+        playAll(listOf(amount))
+    }
 
-    fun play(amount: AmountPlayInfo)
+    fun play(amounts: Collection<Double>) {
+        playAll(amounts.map { AmountPlayInfo(it) })
+    }
 
-    fun play(amounts: Collection<AmountPlayInfo>)
+    fun playAll(amounts: Collection<AmountPlayInfo>)
 
     fun stop()
 }
