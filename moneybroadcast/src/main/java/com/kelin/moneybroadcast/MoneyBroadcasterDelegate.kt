@@ -1,9 +1,7 @@
 package com.kelin.moneybroadcast
 
 import android.content.Context
-import android.content.res.AssetFileDescriptor
 import android.media.MediaPlayer
-import android.util.Log
 import androidx.annotation.WorkerThread
 import com.kelin.moneybroadcast.voice.*
 import com.kelin.moneybroadcast.voice.provider.DefaultVoiceProvider
@@ -86,19 +84,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         }
     }
 
-    override fun play(amount: Double) {
-        play(AmountPlayInfo(amount))
-    }
-
-    override fun play(amount: AmountPlayInfo) {
-        play(listOf(amount))
-    }
-
-    override fun playAll(amounts: Collection<Double>) {
-        play(amounts.map { AmountPlayInfo(it) })
-    }
-
-    override fun play(amounts: Collection<AmountPlayInfo>) {
+    override fun playAll(amounts: Collection<AmountPlayInfo>) {
         producerService.execute { doProducer(amounts) }
     }
 
@@ -112,39 +98,9 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         dataQueue.clear()
     }
 
-
-//    @WorkerThread
-//    private fun doPlay(amount: AmountPlayInfo) {
-//        synchronized(MoneyBroadcasterDelegate::class.java) {
-//            try {
-//                Log.d("MoneyBroadcaster", "=========播放：${amount.amount}")
-//                val soundList = getVoiceWhatListByAmount(amount).mapNotNull { what ->
-//                    (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
-//                        loadVoiceDataByVoiceRes(player, it)?.let { id ->
-//                            SoundId(
-//                                id,
-//                                it.duration
-//                            )
-//                        }
-//                    }
-//                }
-//                Thread.sleep(500L)
-//                soundList.forEachIndexed { i, sound ->
-//                    player.play(sound.id, 1F, 1F, 100, 0, 1F)
-//                    if (i < soundList.lastIndex) {
-//                        Thread.sleep(sound.duration)
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                e.printStackTrace()
-//            }
-//        }
-//    }
-
     @WorkerThread
     private fun doPlayV2(amount: AmountPlayInfo) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
-            Log.d("Player", "加载播放资源")
             val srcList = getVoiceWhatListByAmount(amount).mapNotNullTo(ArrayList()) { what ->
                 (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
                     if (it is NullVoice) {
@@ -154,7 +110,6 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
                     }
                 }
             }
-            Log.d("Player", "开始播放")
             startPlay(srcList)
         }
     }
@@ -169,25 +124,11 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
                 player.reset()
                 srcList.removeAt(0)
                 if (srcList.isNotEmpty()) {
-                    Log.d("Player", "继续播放")
                     startPlay(srcList)
                 } else {
-                    Log.d("Player", "开始初始化下一条，剩余：${dataQueue.size}")
                     readyQueue.take()
                 }
             }
-        }
-    }
-
-    private fun loadVoiceDataByVoiceRes(res: VoiceRes): AssetFileDescriptor? {
-        return when (res) {
-            is RawVoice -> {
-                context.resources.openRawResourceFd(res.res)
-            }
-//            is AssetVoice -> {
-//                player.load(context.assets.openFd(res.res), 100)
-//            }
-            else -> null
         }
     }
 
@@ -268,9 +209,4 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     private fun transformReadableAmountToVoiceWhat(readableAmount: String): List<VoiceWhat> {
         return readableAmount.mapNotNull { voiceWhatPool[it] }
     }
-
-    /**
-     * 封装SoundPool的ID和时长。
-     */
-    data class SoundId(val id: Int, val duration: Long)
 }

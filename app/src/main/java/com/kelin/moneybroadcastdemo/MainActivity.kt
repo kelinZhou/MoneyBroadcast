@@ -13,10 +13,10 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-    private val moneyBroadcaster1 by lazy { MoneyBroadcaster.with(applicationContext) }
+    private val moneyBroadcaster1 by lazy { MoneyBroadcaster.create(applicationContext) }
     private val moneyBroadcaster2 by lazy {
-        MoneyBroadcaster.with(applicationContext) {
-            return@with when (it) {
+        MoneyBroadcaster.create(applicationContext) {
+            when (it) {
                 VoiceWhatSuccess -> {
                     RawVoice(R.raw.tts_success, 1500)
                 }
@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
                 moneyBroadcaster1.play(etAmount.text.toString().toDouble())
                 etAmount.text = null
             } else {
-                moneyBroadcaster1.playAll(listOf(100.0, 200.4, 300.0, 400.8))
+                moneyBroadcaster1.play(listOf(100.0, 200.4, 300.0, 400.8))
             }
         }
         btnPlay2.setOnClickListener {
@@ -52,15 +52,13 @@ class MainActivity : AppCompatActivity() {
         }
         btnPlay3.setOnClickListener {
             if (!etAmount.text.isNullOrEmpty()) {
-                MoneyBroadcaster.with(applicationContext).play(
-                    AmountPlayInfo(etAmount.text.toString().toDouble(), VoiceWhatNull)
-                )
+                moneyBroadcaster1.play(AmountPlayInfo(etAmount.text.toString().toDouble(), VoiceWhatNull))
                 etAmount.text = null
             }
         }
 
         handler.postDelayed({
-            moneyBroadcaster1.playAll(listOf(321.0, 321.4, 328.0, 325.8))
+            moneyBroadcaster1.play(listOf(321.0, 321.4, 328.0, 325.8))
         }, 500)
     }
 
