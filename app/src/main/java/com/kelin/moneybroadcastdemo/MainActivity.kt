@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
         MoneyBroadcaster.with(applicationContext) {
             return@with when (it) {
                 VoiceWhatSuccess -> {
-                    AssetVoice("sound/tts_success.mp3", 1500)
+                    RawVoice(R.raw.tts_success, 1500)
                 }
                 VoiceWhatUnit -> {
                     RawVoice(R.raw.yuan, 1500)
