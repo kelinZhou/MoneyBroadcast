@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
                 moneyBroadcaster1.play(etAmount.text.toString().toDouble())
                 etAmount.text = null
             } else {
-                moneyBroadcaster1.play(listOf(100.0, 200.4, 300.0, 400.8))
+                moneyBroadcaster1.play(100.0, 200.4, 300.0, 400.8)
             }
         }
         btnPlay2.setOnClickListener {
@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         handler.postDelayed({
-            moneyBroadcaster1.play(listOf(321.0, 321.4, 328.0, 325.8))
+            moneyBroadcaster1.play(321.0, 321.4, 328.0, 325.8)
         }, 500)
     }
 

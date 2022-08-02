@@ -13,5 +13,5 @@ import com.kelin.moneybroadcast.voice.VoiceWhat
  * **版本:** v 1.0.0
  */
 interface VoiceProvider {
-    fun onProvideVoice(what: VoiceWhat): VoiceRes
+    fun provideVoice(what: VoiceWhat): VoiceRes?
 }

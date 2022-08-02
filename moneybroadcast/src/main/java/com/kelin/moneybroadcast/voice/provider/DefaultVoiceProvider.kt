@@ -13,7 +13,7 @@ import com.kelin.moneybroadcast.voice.*
  * **版本:** v 1.0.0
  */
 class DefaultVoiceProvider : VoiceProvider {
-    override fun onProvideVoice(what: VoiceWhat): VoiceRes {
+    override fun provideVoice(what: VoiceWhat): VoiceRes {
         return when (what) {
             VoiceWhatSuccess -> RawVoice(R.raw.tts_success, 1500)
             VoiceWhatUnit -> RawVoice(R.raw.tts_yuan, 500)

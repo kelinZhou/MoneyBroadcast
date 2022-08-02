@@ -25,12 +25,12 @@ interface MoneyBroadcaster {
         }
     }
 
-    fun play(amount: Double) {
-        play(AmountPlayInfo(amount))
+    fun play(vararg amounts: AmountPlayInfo) {
+        playAll(amounts.toList())
     }
 
-    fun play(amount: AmountPlayInfo) {
-        playAll(listOf(amount))
+    fun play(vararg amounts: Double) {
+        playAll(amounts.map { AmountPlayInfo(it) })
     }
 
     fun play(amounts: Collection<Double>) {

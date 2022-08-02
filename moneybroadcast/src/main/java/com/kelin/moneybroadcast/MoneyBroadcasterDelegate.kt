@@ -5,6 +5,7 @@ import android.media.MediaPlayer
 import androidx.annotation.WorkerThread
 import com.kelin.moneybroadcast.voice.*
 import com.kelin.moneybroadcast.voice.provider.DefaultVoiceProvider
+import com.kelin.moneybroadcast.voice.provider.VoiceProvider
 import java.text.DecimalFormat
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
@@ -18,7 +19,7 @@ import java.util.concurrent.Executors
  *
  * **版本:** v 1.0.0
  */
-internal class MoneyBroadcasterDelegate(private val context: Context, private val provider: ((what: VoiceWhat) -> VoiceRes?)?) : MoneyBroadcaster {
+internal class MoneyBroadcasterDelegate(private val context: Context, private val provider: VoiceProvider?) : MoneyBroadcaster {
 
     companion object {
         private val CHINESE_UNIT = charArrayOf('元', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿', '拾', '佰', '仟')
@@ -42,6 +43,8 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
             Pair('.', VoiceWhatDot),
         )
     }
+
+    constructor(context: Context, provider: ((what: VoiceWhat) -> VoiceRes?)?) : this(context, provider?.let { VoiceProviderFunctionWrapper(it) } )
 
     /**
      * 生产线程。
@@ -102,7 +105,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     private fun doPlayV2(amount: AmountPlayInfo) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
             val srcList = getVoiceWhatListByAmount(amount).mapNotNullTo(ArrayList()) { what ->
-                (provider?.invoke(what) ?: defaultVoiceProvider.onProvideVoice(what)).let {
+                (provider?.provideVoice(what) ?: defaultVoiceProvider.provideVoice(what)).let {
                     if (it is NullVoice) {
                         null
                     } else {
@@ -208,5 +211,11 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
      */
     private fun transformReadableAmountToVoiceWhat(readableAmount: String): List<VoiceWhat> {
         return readableAmount.mapNotNull { voiceWhatPool[it] }
+    }
+
+    private class VoiceProviderFunctionWrapper(private val provider: (what: VoiceWhat) -> VoiceRes?) : VoiceProvider {
+        override fun provideVoice(what: VoiceWhat): VoiceRes? {
+            return provider.invoke(what)
+        }
     }
 }
