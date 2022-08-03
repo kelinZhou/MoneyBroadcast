@@ -44,7 +44,7 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         )
     }
 
-    constructor(context: Context, provider: ((what: VoiceWhat) -> VoiceRes?)?) : this(context, provider?.let { VoiceProviderFunctionWrapper(it) } )
+    constructor(context: Context, provider: ((what: VoiceWhat) -> VoiceRes?)?) : this(context, provider?.let { VoiceProviderFunctionWrapper(it) })
 
     /**
      * 生产线程。
@@ -69,12 +69,12 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     /**
      * 数据源队列。
      */
-    private val dataQueue by lazy { ArrayBlockingQueue<AmountPlayInfo>(10000, true) }
+    private val dataQueue by lazy { ArrayBlockingQueue<NumberInfo>(10000, true) }
 
     /**
      * 准备好了的数据队列。
      */
-    private val readyQueue by lazy { ArrayBlockingQueue<AmountPlayInfo>(1, true) }
+    private val readyQueue by lazy { ArrayBlockingQueue<NumberInfo>(1, true) }
 
     init {
         consumerService.execute {
@@ -87,13 +87,13 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
         }
     }
 
-    override fun playAll(amounts: Collection<AmountPlayInfo>) {
-        producerService.execute { doProducer(amounts) }
+    override fun playAll(numbers: Iterable<NumberInfo>) {
+        producerService.execute { doProducer(numbers) }
     }
 
-    private fun doProducer(amounts: Collection<AmountPlayInfo>) {
+    private fun doProducer(numbers: Iterable<NumberInfo>) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
-            amounts.forEach { dataQueue.put(it) }
+            numbers.forEach { dataQueue.put(it) }
         }
     }
 
@@ -102,9 +102,9 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     }
 
     @WorkerThread
-    private fun doPlayV2(amount: AmountPlayInfo) {
+    private fun doPlayV2(number: NumberInfo) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
-            val srcList = getVoiceWhatListByAmount(amount).mapNotNullTo(ArrayList()) { what ->
+            val srcList = getVoiceWhatListByNumber(number).mapNotNullTo(ArrayList()) { what ->
                 (provider?.provideVoice(what) ?: defaultVoiceProvider.provideVoice(what)).let {
                     if (it is NullVoice) {
                         null
@@ -113,23 +113,31 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
                     }
                 }
             }
-            startPlay(srcList)
+            if (srcList.isNotEmpty()) {
+                startPlay(srcList)
+            }
         }
     }
 
     private fun startPlay(srcList: ArrayList<VoiceRes>) {
         synchronized(MoneyBroadcasterDelegate::class.java) {
-            val descriptor = context.resources.openRawResourceFd(srcList[0].res)
-            player.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-            player.prepareAsync()
-            player.setOnPreparedListener { player.start() }
-            player.setOnCompletionListener {
-                player.reset()
-                srcList.removeAt(0)
-                if (srcList.isNotEmpty()) {
-                    startPlay(srcList)
-                } else {
-                    readyQueue.take()
+            srcList.first().also { voice ->
+                val descriptor = when (voice) {
+                    is RawVoice -> context.resources.openRawResourceFd(voice.res)
+                    is AssetVoice -> context.resources.assets.openFd(voice.res)
+                    else -> throw RuntimeException()
+                }
+                player.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+                player.prepareAsync()
+                player.setOnPreparedListener { player.start() }
+                player.setOnCompletionListener {
+                    player.reset()
+                    srcList.removeAt(0)
+                    if (srcList.isNotEmpty()) {
+                        startPlay(srcList)
+                    } else {
+                        readyQueue.take()
+                    }
                 }
             }
         }
@@ -138,45 +146,45 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     /**
      * 根据金额返回声音类型。
      */
-    private fun getVoiceWhatListByAmount(amount: AmountPlayInfo): MutableList<VoiceWhat> {
-        return if (amount.amount == 0.0 || amount.amount > 999999999.9999) {
-            mutableListOf(amount.front)
+    private fun getVoiceWhatListByNumber(number: NumberInfo): MutableList<VoiceWhat> {
+        return if (number.number == 0.0 || number.number > 999999999.9999) {
+            mutableListOf(number.prefix)
         } else {
-            val amountStr = DecimalFormat("0.####").format(amount.amount)
-            ArrayList<VoiceWhat>(amountStr.length + 2).apply {
-                add(amount.front)
-                addAll(transformReadableNumbers(amountStr))
-                add(amount.unit)
+            val numberStr = DecimalFormat("0.####").format(number.number)
+            ArrayList<VoiceWhat>(numberStr.length + 2).apply {
+                add(number.prefix)
+                addAll(transformReadableNumbers(numberStr))
+                add(number.unit)
             }
         }
     }
 
     /**
-     * 将金额的字符串形式转换为声音类型。
+     * 将数字的字符串形式转换为声音类型。
      */
-    private fun transformReadableNumbers(amount: String): List<VoiceWhat> {
-        return if (amount.contains(".")) {
-            val amountParts = amount.split('.')
+    private fun transformReadableNumbers(number: String): List<VoiceWhat> {
+        return if (number.contains(".")) {
+            val numberParts = number.split('.')
             ArrayList<VoiceWhat>().apply {
                 addAll(
-                    transformReadableAmountToVoiceWhat(intAmountToReadableString(amountParts[0].toInt()))
+                    transformReadableNumberToVoiceWhat(intNumberToReadableString(numberParts[0].toInt()))
                 )
                 add(VoiceWhatDot)
                 addAll(
-                    transformReadableAmountToVoiceWhat(amountParts[1])
+                    transformReadableNumberToVoiceWhat(numberParts[1])
                 )
             }
         } else {
-            transformReadableAmountToVoiceWhat(
-                intAmountToReadableString(amount.toInt())
+            transformReadableNumberToVoiceWhat(
+                intNumberToReadableString(number.toInt())
             )
         }
     }
 
     /**
-     * 将整数金额转换为可读的字符串。
+     * 将整数数字转换为可读的字符串。
      */
-    private fun intAmountToReadableString(value: Int): String {
+    private fun intNumberToReadableString(value: Int): String {
         when (value) {
             0 -> {
                 return "0"
@@ -207,10 +215,10 @@ internal class MoneyBroadcasterDelegate(private val context: Context, private va
     }
 
     /**
-     * 将客户的金额字符串转换为声音类型。
+     * 将可读的数字字符串转换为声音类型。
      */
-    private fun transformReadableAmountToVoiceWhat(readableAmount: String): List<VoiceWhat> {
-        return readableAmount.mapNotNull { voiceWhatPool[it] }
+    private fun transformReadableNumberToVoiceWhat(readableNumber: String): List<VoiceWhat> {
+        return readableNumber.mapNotNull { voiceWhatPool[it] }
     }
 
     private class VoiceProviderFunctionWrapper(private val provider: (what: VoiceWhat) -> VoiceRes?) : VoiceProvider {

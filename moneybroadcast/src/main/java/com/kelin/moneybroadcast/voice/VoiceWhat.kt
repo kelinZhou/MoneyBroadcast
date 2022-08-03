@@ -17,12 +17,12 @@ sealed class VoiceWhat
 object VoiceWhatNull : VoiceWhat()
 
 /**
- * 收款成功。
+ * 金额播报的前缀，也就是首先要被播报的语音。
  */
-object VoiceWhatSuccess : VoiceWhat()
+object VoiceWhatPrefix : VoiceWhat()
 
 /**
- * 金额单位。
+ * 数字所对应的单位，也就是播报完数字之后要播报的语音。
  */
 object VoiceWhatUnit : VoiceWhat()
 

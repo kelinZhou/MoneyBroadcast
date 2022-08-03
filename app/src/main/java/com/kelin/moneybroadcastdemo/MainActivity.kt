@@ -4,9 +4,8 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.view.Menu
-import android.view.MenuInflater
 import android.view.MenuItem
-import com.kelin.moneybroadcast.AmountPlayInfo
+import com.kelin.moneybroadcast.NumberInfo
 import com.kelin.moneybroadcast.MoneyBroadcaster
 import com.kelin.moneybroadcast.voice.*
 import kotlinx.android.synthetic.main.activity_main.*
@@ -17,11 +16,11 @@ class MainActivity : AppCompatActivity() {
     private val moneyBroadcaster2 by lazy {
         MoneyBroadcaster.create(applicationContext) {
             when (it) {
-                VoiceWhatSuccess -> {
-                    RawVoice(R.raw.tts_success, 1500)
+                VoiceWhatPrefix -> {
+                    AssetVoice("sound/tts_success.mp3")
                 }
                 VoiceWhatUnit -> {
-                    RawVoice(R.raw.yuan, 1500)
+                    RawVoice(R.raw.yuan)
                 }
                 else -> {
                     null
@@ -52,14 +51,14 @@ class MainActivity : AppCompatActivity() {
         }
         btnPlay3.setOnClickListener {
             if (!etAmount.text.isNullOrEmpty()) {
-                moneyBroadcaster1.play(AmountPlayInfo(etAmount.text.toString().toDouble(), VoiceWhatNull))
+                moneyBroadcaster1.play(NumberInfo(etAmount.text.toString().toDouble(), VoiceWhatNull))
                 etAmount.text = null
             }
         }
 
-        handler.postDelayed({
-            moneyBroadcaster1.play(321.0, 321.4, 328.0, 325.8)
-        }, 500)
+//        handler.postDelayed({
+//            moneyBroadcaster1.play(321.0, 321.4, 328.0, 325.8)
+//        }, 500)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
